@@ -3,6 +3,7 @@ from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
 from app.middlewares.auth_middleware import get_current_user
 from app.middlewares.logger_middleware import log_request_info, log_response_info
+from app.routes.scan_routes import scan_routes
 from app.routes.thread_routes import thread_routes
 
 from app.utils.messages import Error
@@ -16,6 +17,7 @@ def stop(env, resp):
 
 blueprints = {
     '/threads': thread_routes,
+    '/scan': scan_routes,
 }
 
 

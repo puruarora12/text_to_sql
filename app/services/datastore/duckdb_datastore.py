@@ -83,3 +83,37 @@ class DuckDBDatastore:
         LIMIT {limit}
         """
         return self.execute(query)
+
+    def get_list_of_tables(
+        self, schema_name: Optional[str] = None
+    ) -> list[str]:
+        """
+        Retrieve a list of tables from the database.
+
+        Args:
+            table_name (str): Name of the table.
+            schema_name (str, optional): Schema name.
+
+        Returns:
+            pd.DataFrame: DataFrame with list of tables.
+        """
+        query = f"""
+        SELECT table_name, table_schema
+        FROM information_schema.tables
+        ORDER BY table_name
+        """
+        return self.execute(query).to_dict(orient="records")
+    
+    def get_list_of_columns(
+        self, table_name: str, schema_name: Optional[str] = None
+    ) -> list[str]:
+        """
+        Retrieve a list of columns from a specific table.
+        """
+        query = f"""
+        SELECT column_name, data_type, is_nullable, character_maximum_length
+        FROM information_schema.columns
+        WHERE table_name = '{table_name}' AND table_schema = '{schema_name}'
+        ORDER BY column_name
+        """
+        return self.execute(query).to_dict(orient="records")
