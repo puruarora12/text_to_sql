@@ -12,6 +12,6 @@ def log_request_info():
 
 
 def log_response_info(response):
-    if logger.isEnabledFor(logging.INFO):
-        logger.info(response.data)
+    # if logger.isEnabledFor(logging.INFO):
+        # logger.info(response.data)
     return response

@@ -61,7 +61,8 @@ class ProcessTableListCommand(ReadCommand):
                 # Get sample data for each table
                 sample_data = self.datastore.get_sample_data(
                     table_name=table_name, 
-                    schema_name=schema_name
+                    schema_name=schema_name,
+                    limit = 200
                 )
                 
                 # Convert sample data to list of dictionaries

@@ -253,6 +253,7 @@ class LLMSession:
             raise ValueError("Messages list is empty.")
 
         try:
+            logger.info(f"structured_output: {structured_output}")
             response = completion(
                 model=self.chat_model,
                 messages=messages,
@@ -349,29 +350,35 @@ class LLMSession:
 
         return trimmed_message_history
 
-    def generate_embedding(self, text: str) -> List[float]:
+    def get_embeddings(self, texts: List[str]) -> List[List[float]]:
         """
-        Generate embedding for the given text.
+        Generate embeddings for a list of texts.
 
-        :param text: Input text.
-        :return: List of floats representing the embedding.
+        :param texts: List of input texts.
+        :return: List of embedding vectors.
         :raises ValueError: If embedding generation fails.
         """
+        if not texts:
+            return []
         try:
             response = embedding(
-                model=self.embedding_model, input=text, metadata=self._get_metadata()
+                model=self.embedding_model, input=texts, metadata=self._get_metadata()
             ).to_dict()
             embeddings = response.get("data", [])
+            vectors: List[List[float]] = []
             if embeddings:
-                embedding_vector = embeddings[0].get(
-                    "embedding", [0.0] * self.knn_embedding_dimensions
+                # Sort by index to maintain input order if provided
+                embeddings_sorted = sorted(
+                    embeddings, key=lambda e: e.get("index", 0)
                 )
+                for item in embeddings_sorted:
+                    vectors.append(
+                        item.get("embedding", [0.0] * self.knn_embedding_dimensions)
+                    )
             else:
-                embedding_vector = [0.0] * self.knn_embedding_dimensions
-
-            logger.debug(f"Generated embedding for text: {text}")
-            return embedding_vector
-
+                vectors = [[0.0] * self.knn_embedding_dimensions for _ in texts]
+            logger.debug(f"Generated {len(vectors)} embeddings for batch input")
+            return vectors
         except Exception as e:
-            logger.error(f"Error generating embeddings: {e}")
+            logger.error(f"Error generating batch embeddings: {e}")
             raise ValueError("Error generating embeddings.") from e

@@ -38,7 +38,7 @@ class DuckDBDatastore:
             return self.connection.execute(query, parameters).df()
         else:
             return self.connection.execute(query).df()
-        
+    
 
     def get_columns(
         self, table_name: str, schema_name: Optional[str] = None
@@ -86,16 +86,15 @@ class DuckDBDatastore:
 
     def get_list_of_tables(
         self, schema_name: Optional[str] = None
-    ) -> list[str]:
+    ) -> list[Dict[str, Any]]:
         """
         Retrieve a list of tables from the database.
 
         Args:
-            table_name (str): Name of the table.
-            schema_name (str, optional): Schema name.
+            schema_name (str, optional): Schema name to filter tables.
 
         Returns:
-            pd.DataFrame: DataFrame with list of tables.
+            list: List of dictionaries with table information.
         """
         query = f"""
         SELECT table_name, table_schema
@@ -106,14 +105,22 @@ class DuckDBDatastore:
     
     def get_list_of_columns(
         self, table_name: str, schema_name: Optional[str] = None
-    ) -> list[str]:
+    ) -> list[Dict[str, Any]]:
         """
         Retrieve a list of columns from a specific table.
+
+        Args:
+            table_name (str): Name of the table.
+            schema_name (str, optional): Schema name.
+
+        Returns:
+            list: List of dictionaries with column information.
         """
+        schema_filter = f"AND table_schema = '{schema_name}'" if schema_name else ""
         query = f"""
         SELECT column_name, data_type, is_nullable, character_maximum_length
         FROM information_schema.columns
-        WHERE table_name = '{table_name}' AND table_schema = '{schema_name}'
+        WHERE table_name = '{table_name}' {schema_filter}
         ORDER BY column_name
         """
         return self.execute(query).to_dict(orient="records")
