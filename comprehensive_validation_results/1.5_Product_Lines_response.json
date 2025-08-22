@@ -1,0 +1,9 @@
+﻿{
+    "correlation_id":  "f3759b4c-903e-4037-b016-3e7e6294c426",
+    "payload":  {
+                    "decision":  "reject",
+                    "feedback":  "Execution failed: Catalog Error: Table with name main.product does not exist!\nDid you mean \"product\"?\n\nLINE 1: SELECT DISTINCT \"Product Line\" FROM \"main.product\" LIMIT 100;\n                                            ^",
+                    "sql":  "SELECT DISTINCT \"Product Line\" FROM \"main.product\" LIMIT 100;"
+                },
+    "status":  200
+}

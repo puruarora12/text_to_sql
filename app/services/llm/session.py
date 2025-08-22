@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Iterator
 from flask import current_app
 
 from app import logger
@@ -233,6 +233,49 @@ class LLMSession:
             return response
         except Exception as e:
             logger.error(f"Error sending messages to chat model: {e}")
+            raise
+
+    def chat_stream(
+        self,
+        messages: List[Dict[str, str]],
+        tools: Optional[List[Any]] = None,
+        **kwargs,
+    ) -> Iterator[str]:
+        """
+        Stream assistant content tokens from the chat model using LiteLLM.
+
+        Yields content deltas (strings). Callers may aggregate to form the final assistant message.
+        """
+        chat_config: Dict[str, Any] = {
+            "model": self.chat_model,
+            "messages": messages,
+            "stream": True,
+            **kwargs,
+        }
+        if tools:
+            chat_config["tools"] = tools
+
+        guardrail_id = current_app.config.get("BEDROCK_GUARDRAILS_ID")
+        if guardrail_id:
+            chat_config["guardrailConfig"] = {
+                "guardrailIdentifier": guardrail_id,
+                "guardrailVersion": "DRAFT",
+                "trace": "enabled",
+            }
+
+        chat_config.setdefault("metadata", {}).update(self._get_metadata())
+
+        try:
+            stream = completion(**chat_config)
+            for chunk in stream:
+                try:
+                    delta = (chunk.choices[0].delta or {}).get("content")
+                except Exception:
+                    delta = None
+                if delta:
+                    yield delta
+        except Exception as e:
+            logger.error(f"Error streaming chat response: {e}")
             raise
 
     def get_structured_output(

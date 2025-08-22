@@ -1,0 +1,9 @@
+﻿{
+    "correlation_id":  "b44f7c0a-82e1-4871-80d0-2f69a2974bcb",
+    "payload":  {
+                    "decision":  "reject",
+                    "feedback":  "Validation failed: Query validation failed: Validation failed due to error: Working outside of application context.\n\nThis typically means that you attempted to use functionality that needed\nthe current application. To solve this, set up an application context\nwith app.app_context(). See the documentation for more information.",
+                    "sql":  "SELECT c.Key, c.Name, COUNT(p.Key) AS ProductCount\nFROM main.customer AS c\nJOIN main.product AS p ON c.Key = p.ParentId\nGROUP BY c.Key, c.Name\nHAVING COUNT(p.Key) \u003e 5\nORDER BY ProductCount DESC\nLIMIT 10;"
+                },
+    "status":  200
+}

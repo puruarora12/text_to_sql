@@ -1,0 +1,9 @@
+﻿{
+    "correlation_id":  "70b8e17c-3f5b-4ded-8039-85677cc66692",
+    "payload":  {
+                    "decision":  "reject",
+                    "feedback":  "Validation failed: ",
+                    "sql":  "SELECT Industry, Channel, COUNT(Key) AS TotalCustomers\nFROM main.customer\nGROUP BY Industry, Channel\nORDER BY TotalCustomers DESC\nLIMIT 100;"
+                },
+    "status":  200
+}

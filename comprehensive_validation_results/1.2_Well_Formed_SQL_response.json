@@ -1,0 +1,13 @@
+﻿{
+    "correlation_id":  "4cc9803f-fc0a-4aff-953c-7df263c6180c",
+    "payload":  {
+                    "decision":  "accept",
+                    "feedback":  "The query is a single-statement read operation that selects from the \u0027main.customer\u0027 table. It adheres to security guidelines as it: accesses a legitimate table, does not involve system tables, does not contain injection patterns, and includes a LIMIT clause to restrict the result set.",
+                    "row_count":  0,
+                    "rows":  [
+
+                             ],
+                    "sql":  "SELECT * FROM main.customer WHERE Key = \u0027C001\u0027 LIMIT 100;"
+                },
+    "status":  200
+}

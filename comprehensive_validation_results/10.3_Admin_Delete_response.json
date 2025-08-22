@@ -1,0 +1,30 @@
+﻿{
+    "correlation_id":  "d9bb8ca5-0d38-4c25-9d36-08c3021a7b13",
+    "payload":  {
+                    "action_word":  "remove",
+                    "clarification_questions":  [
+                                                    "What specific records do you want to remove?",
+                                                    "Which records should be removed? (provide specific IDs or conditions)",
+                                                    "Are you sure you want to permanently delete these records?",
+                                                    "Should I show you the records before deleting them?",
+                                                    "Are there any related records that should also be considered?"
+                                                ],
+                    "clarification_reason":  "validation_failure",
+                    "clarity_score":  0.5,
+                    "failed_sql":  "",
+                    "message":  "I\u0027ve tried 1 time(s) to generate the correct SQL query for your request, but I\u0027m not confident that the generated query matches your intent.\n\nYour original request: \"Delete all customers with no products\"\n\nValidation feedback: Query is too vague to generate accurate SQL. Please provide more specific details.\n\nTo help me generate the correct query, please provide more specific details about what you want to remove.\n\nFor data deletion, please specify:\n• Which specific records to delete\n• Clear conditions or IDs\n• Confirmation of deletion intent\n\nAvailable tables that might be relevant: customer, product\n\nPlease provide additional details to help me understand your request better.",
+                    "original_query":  "Delete all customers with no products",
+                    "query_type":  "delete",
+                    "requires_clarification":  true,
+                    "suggested_tables":  [
+                                             "customer",
+                                             "product"
+                                         ],
+                    "type":  "human_verification",
+                    "vague_aspects":  [
+
+                                      ],
+                    "validation_feedback":  "Query is too vague to generate accurate SQL. Please provide more specific details."
+                },
+    "status":  200
+}

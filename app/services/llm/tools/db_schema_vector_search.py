@@ -11,7 +11,7 @@ import re
 
 @tool_call
 @observe
-def db_schema_vector_search(natural_language_query: str, n_results: int = 5) -> Dict[str, str]:
+def db_schema_vector_search(natural_language_query: str, n_results: int = 3) -> Dict[str, str]:
 	"""
 	Fetch concise database context for SQL generation using vector search plus a compact DB schema summary.
 
@@ -24,7 +24,7 @@ def db_schema_vector_search(natural_language_query: str, n_results: int = 5) -> 
 	try:
 		vector_store = VectorStoreService(collection_name="dbschema", index_name="dbschema")
 		results: List[Dict[str, Any]] = vector_store.search(natural_language_query, n_results=n_results)
-		logger.info(f"Vector results: {results}")
+		# logger.info(f"Vector results: {results}")
 		lines: List[str] = []
 		for item in results[:n_results]:
 			if not isinstance(item, dict):
@@ -77,5 +77,3 @@ def db_schema_vector_search(natural_language_query: str, n_results: int = 5) -> 
 		schema_text = ""
 
 	return {"context_text": context_text, "schema_text": schema_text}
-
-
