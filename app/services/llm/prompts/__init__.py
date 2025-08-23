@@ -28,20 +28,17 @@ def prompt(name=None):
         @wraps(func)
         def wrapper(*args, **kwargs):
             prompt_name = name or func.__name__
-            # Only fetch remote prompts if explicitly enabled
-            if current_app and current_app.config.get('ENABLE_LANGFUSE_PROMPTS', False):
-                if all([
-                    current_app.config.get('LANGFUSE_PUBLIC_KEY'),
-                    current_app.config.get('LANGFUSE_SECRET_KEY'),
-                    current_app.config.get('LANGFUSE_HOST')
-                ]):
-                    try:
-                        langfuse_prompt = Langfuse().get_prompt(prompt_name, type="chat")
-                        return langfuse_prompt.compile(**kwargs, fallback=func(*args, **kwargs))
-                    except Exception:
-                        # Fallback to local prompt
-                        return func(*args, **kwargs)
-            # Default to local prompt
+            # Check if Langfuse is configured
+            if all([
+                current_app.config['LANGFUSE_PUBLIC_KEY'],
+                current_app.config['LANGFUSE_SECRET_KEY'],
+                current_app.config['LANGFUSE_HOST']
+            ]):
+                try:
+                    langfuse_prompt = Langfuse().get_prompt(prompt_name, type="chat")
+                    return langfuse_prompt.compile(**kwargs, fallback=func(*args, **kwargs))
+                except Exception as e:
+                    return func(*args, **kwargs)
             return func(*args, **kwargs)
         return wrapper
     return decorator

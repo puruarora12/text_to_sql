@@ -1,6 +1,9 @@
 import duckdb
 import pandas as pd
 from typing import Optional, Dict, Any
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -34,11 +37,45 @@ class DuckDBDatastore:
         Returns:
             pd.DataFrame: The query result.
         """
+        logger.info(f"DuckDB executing query: '{query}'")
         if parameters:
-            return self.connection.execute(query, parameters).df()
-        else:
-            return self.connection.execute(query).df()
-    
+            logger.debug(f"Query parameters: {parameters}")
+        
+        try:
+            if parameters:
+                result = self.connection.execute(query, parameters).df()
+            else:
+                result = self.connection.execute(query).df()
+            
+            logger.info(f"Query executed successfully. Result shape: {result.shape}")
+            logger.debug(f"Result columns: {list(result.columns) if hasattr(result, 'columns') else 'N/A'}")
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"DuckDB query failed: {e}")
+            logger.error(f"Failed query: '{query}'")
+            raise
+        
+
+    def list_tables(self, schema_name: Optional[str] = None) -> pd.DataFrame:
+        """
+        List tables available in the connected DuckDB database.
+
+        Args:
+            schema_name (str, optional): Filter by schema if provided.
+
+        Returns:
+            pd.DataFrame: DataFrame with columns [table_schema, table_name].
+        """
+        schema_filter = f"AND table_schema = '{schema_name}'" if schema_name else ""
+        query = f"""
+        SELECT table_schema, table_name
+        FROM information_schema.tables
+        WHERE table_type = 'BASE TABLE' {schema_filter}
+        ORDER BY table_schema, table_name
+        """
+        return self.execute(query)
 
     def get_columns(
         self, table_name: str, schema_name: Optional[str] = None
@@ -83,44 +120,3 @@ class DuckDBDatastore:
         LIMIT {limit}
         """
         return self.execute(query)
-
-    def get_list_of_tables(
-        self, schema_name: Optional[str] = None
-    ) -> list[Dict[str, Any]]:
-        """
-        Retrieve a list of tables from the database.
-
-        Args:
-            schema_name (str, optional): Schema name to filter tables.
-
-        Returns:
-            list: List of dictionaries with table information.
-        """
-        query = f"""
-        SELECT table_name, table_schema
-        FROM information_schema.tables
-        ORDER BY table_name
-        """
-        return self.execute(query).to_dict(orient="records")
-    
-    def get_list_of_columns(
-        self, table_name: str, schema_name: Optional[str] = None
-    ) -> list[Dict[str, Any]]:
-        """
-        Retrieve a list of columns from a specific table.
-
-        Args:
-            table_name (str): Name of the table.
-            schema_name (str, optional): Schema name.
-
-        Returns:
-            list: List of dictionaries with column information.
-        """
-        schema_filter = f"AND table_schema = '{schema_name}'" if schema_name else ""
-        query = f"""
-        SELECT column_name, data_type, is_nullable, character_maximum_length
-        FROM information_schema.columns
-        WHERE table_name = '{table_name}' {schema_filter}
-        ORDER BY column_name
-        """
-        return self.execute(query).to_dict(orient="records")

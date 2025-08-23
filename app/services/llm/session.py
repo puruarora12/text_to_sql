@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Optional, Iterator
+from typing import List, Dict, Any, Optional
 from flask import current_app
 
 from app import logger
@@ -235,49 +235,6 @@ class LLMSession:
             logger.error(f"Error sending messages to chat model: {e}")
             raise
 
-    def chat_stream(
-        self,
-        messages: List[Dict[str, str]],
-        tools: Optional[List[Any]] = None,
-        **kwargs,
-    ) -> Iterator[str]:
-        """
-        Stream assistant content tokens from the chat model using LiteLLM.
-
-        Yields content deltas (strings). Callers may aggregate to form the final assistant message.
-        """
-        chat_config: Dict[str, Any] = {
-            "model": self.chat_model,
-            "messages": messages,
-            "stream": True,
-            **kwargs,
-        }
-        if tools:
-            chat_config["tools"] = tools
-
-        guardrail_id = current_app.config.get("BEDROCK_GUARDRAILS_ID")
-        if guardrail_id:
-            chat_config["guardrailConfig"] = {
-                "guardrailIdentifier": guardrail_id,
-                "guardrailVersion": "DRAFT",
-                "trace": "enabled",
-            }
-
-        chat_config.setdefault("metadata", {}).update(self._get_metadata())
-
-        try:
-            stream = completion(**chat_config)
-            for chunk in stream:
-                try:
-                    delta = (chunk.choices[0].delta or {}).get("content")
-                except Exception:
-                    delta = None
-                if delta:
-                    yield delta
-        except Exception as e:
-            logger.error(f"Error streaming chat response: {e}")
-            raise
-
     def get_structured_output(
         self,
         messages: List[Dict[str, str]],
@@ -296,7 +253,6 @@ class LLMSession:
             raise ValueError("Messages list is empty.")
 
         try:
-            logger.info(f"structured_output: {structured_output}")
             response = completion(
                 model=self.chat_model,
                 messages=messages,
@@ -393,35 +349,29 @@ class LLMSession:
 
         return trimmed_message_history
 
-    def get_embeddings(self, texts: List[str]) -> List[List[float]]:
+    def generate_embedding(self, text: str) -> List[float]:
         """
-        Generate embeddings for a list of texts.
+        Generate embedding for the given text.
 
-        :param texts: List of input texts.
-        :return: List of embedding vectors.
+        :param text: Input text.
+        :return: List of floats representing the embedding.
         :raises ValueError: If embedding generation fails.
         """
-        if not texts:
-            return []
         try:
             response = embedding(
-                model=self.embedding_model, input=texts, metadata=self._get_metadata()
+                model=self.embedding_model, input=text, metadata=self._get_metadata()
             ).to_dict()
             embeddings = response.get("data", [])
-            vectors: List[List[float]] = []
             if embeddings:
-                # Sort by index to maintain input order if provided
-                embeddings_sorted = sorted(
-                    embeddings, key=lambda e: e.get("index", 0)
+                embedding_vector = embeddings[0].get(
+                    "embedding", [0.0] * self.knn_embedding_dimensions
                 )
-                for item in embeddings_sorted:
-                    vectors.append(
-                        item.get("embedding", [0.0] * self.knn_embedding_dimensions)
-                    )
             else:
-                vectors = [[0.0] * self.knn_embedding_dimensions for _ in texts]
-            logger.debug(f"Generated {len(vectors)} embeddings for batch input")
-            return vectors
+                embedding_vector = [0.0] * self.knn_embedding_dimensions
+
+            logger.debug(f"Generated embedding for text: {text}")
+            return embedding_vector
+
         except Exception as e:
-            logger.error(f"Error generating batch embeddings: {e}")
+            logger.error(f"Error generating embeddings: {e}")
             raise ValueError("Error generating embeddings.") from e

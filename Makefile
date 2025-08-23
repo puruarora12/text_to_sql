@@ -1,9 +1,9 @@
 .PHONY: init run clean env help
 
 # Set Python interpreter
-PYTHON := python3
+PYTHON := python
 VENV := .venv
-VENV_ACTIVATE := $(VENV)/bin/activate
+VENV_ACTIVATE := $(VENV)/Scripts/activate
 
 # Initialize the project: create venv and install dependencies
 init: env

@@ -3,11 +3,12 @@ from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
 from app.middlewares.auth_middleware import get_current_user
 from app.middlewares.logger_middleware import log_request_info, log_response_info
-from app.routes.scan_routes import scan_routes
 from app.routes.thread_routes import thread_routes
+from app.routes.admin_routes import admin_routes
 
 from app.utils.messages import Error
 from app.utils.response import Response
+from config import config
 
 
 def stop(env, resp):
@@ -17,7 +18,7 @@ def stop(env, resp):
 
 blueprints = {
     '/threads': thread_routes,
-    '/scan': scan_routes,
+    '/admin': admin_routes,
 }
 
 
@@ -33,17 +34,8 @@ def init_routes(app):
 
     @app.get("/")
     def index():
-        from config import config
-        import os
-        env = os.environ.get('FLASK_ENV', 'DEV')
-        current_config = config[env]()
-        
-        return Response({
-            'api_version': 'v1.0', 
-            'api_description': 'TextLayer Core API',
-            'base_url': current_config.BASE_URL,
-            'api_version_path': current_config.API_VERSION
-        }, Response.HTTP_SUCCESS).build()
+        return Response({'api_version': 'v1.0', 'api_description': 'TextLayer Core API'},
+                        Response.HTTP_SUCCESS).build()
 
     @app.get("/health")
     def health():
