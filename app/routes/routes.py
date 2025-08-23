@@ -33,8 +33,17 @@ def init_routes(app):
 
     @app.get("/")
     def index():
-        return Response({'api_version': 'v1.0', 'api_description': 'TextLayer Core API'},
-                        Response.HTTP_SUCCESS).build()
+        from config import config
+        import os
+        env = os.environ.get('FLASK_ENV', 'DEV')
+        current_config = config[env]()
+        
+        return Response({
+            'api_version': 'v1.0', 
+            'api_description': 'TextLayer Core API',
+            'base_url': current_config.BASE_URL,
+            'api_version_path': current_config.API_VERSION
+        }, Response.HTTP_SUCCESS).build()
 
     @app.get("/health")
     def health():

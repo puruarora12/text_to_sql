@@ -432,12 +432,14 @@ def human_query_clarification(
     
     return {
         "type": "human_verification",
-        "message": full_message,
+        "sql": "",  # No SQL to execute for clarification requests
+        "feedback": validation_feedback or "Query needs clarification",
         "requires_clarification": True,
+        "original_query": user_query,
+        "message": full_message,
         "clarification_reason": clarification_reason,
         "clarification_questions": clarification_questions,
         "suggested_tables": suggested_tables,
-        "original_query": user_query,
         "failed_sql": failed_sql,
         "validation_feedback": validation_feedback,
         "query_type": query_type,

@@ -10,6 +10,11 @@ from app.services.llm.tools.strict_schema_validator import strict_schema_validat
 from app.services.llm.tools.sql_injection_detector import sql_injection_detector
 from app.services.llm.tools.sql_query_validator import sql_query_validator
 from app.services.llm.tools.sql_guardrail import sql_guardrail
+from app.schemas.tool_schemas import (
+    ValidationOrchestratorInput, ValidationOrchestratorOutput, ValidationTaskResult,
+    ComplexityAnalysis, PerformanceMetrics, QueryComplexity, ValidationStrategy, ValidationStatus,
+    dict_to_validation_orchestrator_input, validation_orchestrator_output_to_dict
+)
 from flask import current_app
 
 
@@ -43,6 +48,15 @@ def validation_orchestrator(
             "recommendations": List[str]
         }
     """
+    # Convert input to structured format
+    input_data = ValidationOrchestratorInput(
+        user_query=user_query,
+        generated_sql=generated_sql,
+        db_schema=db_schema,
+        context_data=context_data,
+        user_type=user_type
+    )
+    
     start_time = time.time()
     validation_results = {}
     errors = []
@@ -52,7 +66,7 @@ def validation_orchestrator(
     
     try:
         # Step 1: Analyze query complexity to determine validation strategy
-        complexity_analysis = _analyze_query_complexity(user_query, generated_sql)
+        complexity_analysis = _analyze_query_complexity(input_data.user_query, input_data.generated_sql)
         query_complexity = complexity_analysis["complexity"]
         validation_strategy = complexity_analysis["strategy"]
         
@@ -61,20 +75,20 @@ def validation_orchestrator(
         # Step 2: Execute validation based on strategy
         if validation_strategy == "parallel":
             validation_results = _execute_parallel_validation(
-                user_query, generated_sql, db_schema, context_data, user_type
+                input_data.user_query, input_data.generated_sql, input_data.db_schema, input_data.context_data, input_data.user_type
             )
         elif validation_strategy == "sequential":
             validation_results = _execute_sequential_validation(
-                user_query, generated_sql, db_schema, context_data, user_type
+                input_data.user_query, input_data.generated_sql, input_data.db_schema, input_data.context_data, input_data.user_type
             )
         elif validation_strategy == "minimal":
             validation_results = _execute_minimal_validation(
-                user_query, generated_sql, db_schema, context_data, user_type
+                input_data.user_query, input_data.generated_sql, input_data.db_schema, input_data.context_data, input_data.user_type
             )
         else:
             # Default to sequential for unknown strategies
             validation_results = _execute_sequential_validation(
-                user_query, generated_sql, db_schema, context_data, user_type
+                input_data.user_query, input_data.generated_sql, input_data.db_schema, input_data.context_data, input_data.user_type
             )
         
         # Step 3: Analyze validation results
@@ -83,43 +97,57 @@ def validation_orchestrator(
         # Step 4: Generate final response
         total_time = time.time() - start_time
         
-        return {
-            "is_valid": analysis_result["is_valid"],
-            "validation_results": validation_results,
-            "total_validation_time": total_time,
-            "validation_steps": validation_steps,
-            "errors": analysis_result["errors"],
-            "warnings": analysis_result["warnings"],
-            "recommendations": analysis_result["recommendations"],
-            "query_complexity": query_complexity,
-            "validation_strategy": validation_strategy,
-            "performance_metrics": {
-                "total_time": total_time,
-                "steps_completed": len(validation_results),
-                "parallel_steps": len([r for r in validation_results.values() if r.get("parallel", False)])
-            }
-        }
+        # Convert validation results to structured format
+        structured_validation_results = {}
+        for key, value in validation_results.items():
+            structured_validation_results[key] = ValidationTaskResult(
+                result=value.get("result"),
+                parallel=value.get("parallel", False),
+                status=ValidationStatus(value.get("status", "pending")),
+                error=value.get("error")
+            )
+        
+        output = ValidationOrchestratorOutput(
+            is_valid=analysis_result["is_valid"],
+            validation_results=structured_validation_results,
+            total_validation_time=total_time,
+            validation_steps=validation_steps,
+            errors=analysis_result["errors"],
+            warnings=analysis_result["warnings"],
+            recommendations=analysis_result["recommendations"],
+            query_complexity=QueryComplexity(query_complexity),
+            validation_strategy=ValidationStrategy(validation_strategy),
+            performance_metrics=PerformanceMetrics(
+                total_time=total_time,
+                steps_completed=len(validation_results),
+                parallel_steps=len([r for r in validation_results.values() if r.get("parallel", False)])
+            )
+        )
+        
+        return validation_orchestrator_output_to_dict(output)
         
     except Exception as e:
         logger.error(f"Error in validation orchestrator: {e}")
         total_time = time.time() - start_time
         
-        return {
-            "is_valid": False,
-            "validation_results": validation_results,
-            "total_validation_time": total_time,
-            "validation_steps": validation_steps,
-            "errors": [f"Validation orchestrator error: {str(e)}"],
-            "warnings": warnings,
-            "recommendations": ["Check system configuration and try again"],
-            "query_complexity": "unknown",
-            "validation_strategy": "sequential",
-            "performance_metrics": {
-                "total_time": total_time,
-                "steps_completed": len(validation_results),
-                "parallel_steps": 0
-            }
-        }
+        output = ValidationOrchestratorOutput(
+            is_valid=False,
+            validation_results=validation_results,
+            total_validation_time=total_time,
+            validation_steps=validation_steps,
+            errors=[f"Validation orchestrator error: {str(e)}"],
+            warnings=warnings,
+            recommendations=["Check system configuration and try again"],
+            query_complexity=QueryComplexity.UNKNOWN,
+            validation_strategy=ValidationStrategy.SEQUENTIAL,
+            performance_metrics=PerformanceMetrics(
+                total_time=total_time,
+                steps_completed=len(validation_results),
+                parallel_steps=0
+            )
+        )
+        
+        return validation_orchestrator_output_to_dict(output)
 
 
 def _analyze_query_complexity(user_query: str, generated_sql: str) -> Dict[str, Any]:

@@ -5,6 +5,10 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 
 
 class Config:
+    # API Configuration
+    BASE_URL = os.environ.get("BASE_URL", "http://localhost:5000")
+    API_VERSION = "v1"
+    
     # LLM
     KNN_EMBEDDING_DIMENSION = int(os.environ.get('KNN_EMBEDDING_DIMENSION', 1536))
     OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")

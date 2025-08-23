@@ -5,6 +5,7 @@ from typing import Dict, Any, List
 from app import logger
 from app.services.vector_store.vector_store_service import VectorStoreService
 from app.services.datastore.duckdb_datastore import DuckDBDatastore
+from app.schemas.tool_schemas import DBSchemaVectorSearchInput, DBSchemaVectorSearchOutput
 
 import re
 
@@ -19,14 +20,20 @@ def db_schema_vector_search(natural_language_query: str, n_results: int = 3) -> 
 	- context_text: lines like "[schema.table] - description"
 	- schema_text: a compact list of tables and columns
 	"""
+	# Convert input to structured format
+	input_data = DBSchemaVectorSearchInput(
+		natural_language_query=natural_language_query,
+		n_results=n_results
+	)
+	
 	# Vector search for table descriptions
 	context_text = ""
 	try:
 		vector_store = VectorStoreService(collection_name="dbschema", index_name="dbschema")
-		results: List[Dict[str, Any]] = vector_store.search(natural_language_query, n_results=n_results)
+		results: List[Dict[str, Any]] = vector_store.search(input_data.natural_language_query, n_results=input_data.n_results)
 		# logger.info(f"Vector results: {results}")
 		lines: List[str] = []
-		for item in results[:n_results]:
+		for item in results[:input_data.n_results]:
 			if not isinstance(item, dict):
 				continue
 			metadata = item.get("metadata", {}) or {}
@@ -76,4 +83,10 @@ def db_schema_vector_search(natural_language_query: str, n_results: int = 3) -> 
 		logger.error(f"db_schema_vector_search: schema summary failed: {e}")
 		schema_text = ""
 
-	return {"context_text": context_text, "schema_text": schema_text}
+	# Return structured output
+	output = DBSchemaVectorSearchOutput(
+		context_text=context_text,
+		schema_text=schema_text
+	)
+	
+	return {"context_text": output.context_text, "schema_text": output.schema_text}
