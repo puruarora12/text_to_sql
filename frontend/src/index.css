@@ -6,18 +6,78 @@
   html {
     font-family: system-ui, sans-serif;
   }
+  
+  body {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-attachment: fixed;
+    position: relative;
+    min-height: 100vh;
+  }
+  
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: 
+      radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+      radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+      radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.05) 0%, transparent 50%);
+    background-size: 300px 300px, 200px 200px, 400px 400px;
+    background-position: 0 0, 100px 100px, 200px 200px;
+    pointer-events: none;
+    z-index: -1;
+  }
 }
 
 @layer components {
+  .glass-effect {
+    @apply bg-white/10 backdrop-blur-md border border-white/20 shadow-xl;
+  }
+  
+  .glass-card {
+    @apply bg-white/15 backdrop-blur-lg border border-white/25 shadow-2xl;
+  }
+  
   .btn-primary {
-    @apply bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+    @apply bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105;
   }
   
   .btn-secondary {
-    @apply bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+    @apply bg-gray-200/80 hover:bg-gray-300/90 text-gray-800 font-medium py-2 px-4 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl backdrop-blur-sm;
+  }
+  
+  .btn-success {
+    @apply bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center gap-2;
+  }
+  
+  .btn-danger {
+    @apply bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center gap-2;
   }
   
   .input-field {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+    @apply w-full px-3 py-2 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-600;
+  }
+  
+  .chat-bubble {
+    @apply backdrop-blur-sm border border-white/20 shadow-lg;
+  }
+  
+  .chat-bubble-user {
+    @apply bg-purple-600/90 text-white;
+  }
+  
+  .chat-bubble-assistant {
+    @apply bg-white/25 text-gray-800;
+  }
+  
+  .notification-banner {
+    @apply bg-amber-500/20 backdrop-blur-sm border border-amber-400/30 shadow-lg;
+  }
+  
+  .logo {
+    @apply object-contain;
   }
 }

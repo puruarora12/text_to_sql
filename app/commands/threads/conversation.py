@@ -236,6 +236,16 @@ class ConversationCommand(ReadCommand):
 		session_metadata = get_session_metadata(self.input_data.session_id)
 		user_type = session_metadata.get("user_type", "user")  # default to user if not found
 
+		# Check if this is a regeneration request
+		regeneration_feedback = ""
+		failed_sql = ""
+		prev_assistant = self._get_previous_assistant_message(history)
+		if prev_assistant and prev_assistant.get("type") == "regeneration_request":
+			regeneration_feedback = prev_assistant.get("feedback", "")
+			failed_sql = prev_assistant.get("sql", "")
+			logger.info(f"conversation: Detected regeneration request with feedback: {regeneration_feedback}")
+			logger.info(f"conversation: Failed SQL was: {failed_sql}")
+
 		try:
 			gen = text_to_sql(
 				natural_language_query=user_req,
@@ -243,6 +253,8 @@ class ConversationCommand(ReadCommand):
 				schema_text=schema_text,
 				user_type=user_type,
 				previous_chat=previous_chat,
+				regeneration_feedback=regeneration_feedback,
+				failed_sql=failed_sql,
 			)
 		except Exception as e:
 			# Handle any exceptions from text_to_sql
@@ -435,6 +447,22 @@ class ConversationCommand(ReadCommand):
 			
 			return response
 
+		# Handle regeneration requests
+		if gen.get("type") == "regeneration_request":
+			response = {
+				"type": "regeneration_request",
+				"sql": gen.get("sql", ""),
+				"feedback": gen.get("feedback", ""),
+				"requires_clarification": gen.get("requires_clarification", False),
+				"original_query": gen.get("original_query", ""),
+				"user_friendly_message": gen.get("user_friendly_message", ""),
+				"technical_details": gen.get("technical_details", ""),
+				"suggested_fixes": gen.get("suggested_fixes", []),
+				"message": gen.get("message", ""),
+				"decision": "regeneration_request"
+			}
+			return response
+
 		# Handle other decision types (human_verification, executed_after_verification, etc.)
 		if decision in ["human_verification", "executed_after_verification", "cancelled_by_user"]:
 			response = {
@@ -474,6 +502,23 @@ class ConversationCommand(ReadCommand):
 				"decision": "error",
 				"feedback": "Invalid response from SQL execution handler"
 			}
+
+		# Handle regeneration requests first (they have a different structure)
+		if execution_result.get("type") == "regeneration_request":
+			response = {
+				"type": "regeneration_request",
+				"sql": execution_result.get("sql", ""),
+				"feedback": execution_result.get("feedback", ""),
+				"requires_clarification": execution_result.get("requires_clarification", False),
+				"original_query": execution_result.get("original_query", ""),
+				"user_friendly_message": execution_result.get("user_friendly_message", ""),
+				"technical_details": execution_result.get("technical_details", ""),
+				"suggested_fixes": execution_result.get("suggested_fixes", []),
+				"message": execution_result.get("message", ""),
+				"decision": "regeneration_request",
+				"user_response": execution_result.get("user_response", "")
+			}
+			return response
 
 		# Safely extract fields with proper fallbacks
 		sql_query = (execution_result or {}).get("query", "").strip() if isinstance(execution_result, dict) else ""

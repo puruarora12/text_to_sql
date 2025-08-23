@@ -267,7 +267,7 @@ def _execute_parallel_validation(
     # Define validation tasks that can run in parallel
     validation_tasks = [
         ("schema_validation", lambda: strict_schema_validator(generated_sql, db_schema, user_query)),
-        ("injection_detection", lambda: sql_injection_detector(generated_sql)),
+        ("injection_detection", lambda: sql_injection_detector(generated_sql, user_type)),
         ("query_validation", lambda: sql_query_validator(user_query, db_schema, context_data, generated_sql))
     ]
     
@@ -339,7 +339,7 @@ def _execute_sequential_validation(
     # Step 2: SQL injection detection
     validation_results["injection_detection"] = _execute_validation_task(
         "injection_detection",
-        lambda: sql_injection_detector(generated_sql),
+        lambda: sql_injection_detector(generated_sql, user_type),
         parallel=False
     )
     
@@ -384,7 +384,7 @@ def _execute_minimal_validation(
     # For simple queries, only run essential validations
     validation_results["injection_detection"] = _execute_validation_task(
         "injection_detection",
-        lambda: sql_injection_detector(generated_sql),
+        lambda: sql_injection_detector(generated_sql, user_type),
         parallel=False
     )
     

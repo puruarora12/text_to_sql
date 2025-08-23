@@ -204,6 +204,7 @@ class StrictSchemaValidatorOutput:
 class SQLInjectionDetectorInput:
     """Input schema for sql_injection_detector tool."""
     generated_sql: str
+    user_type: UserType = UserType.USER
 
 
 @dataclass
@@ -270,6 +271,58 @@ class HumanQueryClarificationOutput:
     sql: str = ""
     feedback: str = ""
     clarification_questions: List[str] = field(default_factory=list)
+
+
+# ============================================================================
+# SQL Execution Analysis Tool Schemas
+# ============================================================================
+
+@dataclass
+class SQLExecutionAnalyzerInput:
+    """Input schema for sql_execution_analyzer tool."""
+    sql_query: str
+    error_message: str
+    user_query: str
+    db_schema: str = ""
+
+
+@dataclass
+class SQLExecutionAnalyzerOutput:
+    """Output schema for sql_execution_analyzer tool."""
+    failure_type: str  # "sql_structure", "valid_execution", "unknown"
+    should_regenerate: bool
+    regeneration_feedback: str
+    user_friendly_message: str
+    technical_details: str
+    suggested_fixes: List[str] = field(default_factory=list)
+
+
+# SQL Regeneration Tool Schemas
+@dataclass
+class SQLRegenerationInput:
+    """Input schema for sql_regeneration_tool."""
+    original_query: str
+    failed_sql: str
+    failure_reason: str
+    context_text: str = ""
+    schema_text: str = ""
+    user_type: str = "user"
+    previous_chat: str = ""
+    failure_type: str = "validation"  # "validation" or "execution"
+
+
+@dataclass
+class SQLRegenerationOutput:
+    """Output schema for sql_regeneration_tool."""
+    original_query: str
+    failed_sql: str
+    regenerated_sql: str
+    decision: DecisionType
+    feedback: str
+    row_count: int = 0
+    rows: List[Dict[str, Any]] = field(default_factory=list)
+    validation_time: float = 0.0
+    validation_strategy: ValidationStrategy = ValidationStrategy.SEQUENTIAL
 
 
 # ============================================================================
@@ -357,6 +410,28 @@ def text_to_sql_output_to_dict(output: TextToSQLOutput) -> Dict[str, Any]:
         result["row_count"] = output.row_count
     if output.rows is not None:
         result["rows"] = output.rows
+    
+    return result
+
+
+def dict_to_sql_regeneration_input(data: Dict[str, Any]) -> SQLRegenerationInput:
+    """Convert dictionary to SQLRegenerationInput."""
+    return SQLRegenerationInput(**data)
+
+
+def sql_regeneration_output_to_dict(output: SQLRegenerationOutput) -> Dict[str, Any]:
+    """Convert SQLRegenerationOutput to dictionary."""
+    return {
+        "original_query": output.original_query,
+        "failed_sql": output.failed_sql,
+        "regenerated_sql": output.regenerated_sql,
+        "decision": output.decision.value,
+        "feedback": output.feedback,
+        "row_count": output.row_count,
+        "rows": output.rows,
+        "validation_time": output.validation_time,
+        "validation_strategy": output.validation_strategy.value
+    }
     if output.validation_time is not None:
         result["validation_time"] = output.validation_time
     if output.validation_strategy is not None:

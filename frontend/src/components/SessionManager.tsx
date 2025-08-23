@@ -40,9 +40,9 @@ export const SessionManager: React.FC<SessionManagerProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className="glass-card rounded-2xl p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold text-gray-800">Session Management</h2>
+        <h2 className="text-xl font-semibold text-white">Session Management</h2>
         <button
           onClick={() => setShowForm(!showForm)}
           className="btn-primary flex items-center gap-2"
@@ -53,9 +53,9 @@ export const SessionManager: React.FC<SessionManagerProps> = ({
       </div>
 
       {showForm && (
-        <form onSubmit={handleCreateSession} className="mb-6 p-4 bg-gray-50 rounded-lg">
+        <form onSubmit={handleCreateSession} className="mb-6 p-4 glass-effect rounded-xl">
           <div className="mb-4">
-            <label htmlFor="sessionName" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="sessionName" className="block text-sm font-medium text-white mb-2">
               Session Name
             </label>
             <input
@@ -70,11 +70,11 @@ export const SessionManager: React.FC<SessionManagerProps> = ({
           </div>
 
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-white mb-2">
               User Type
             </label>
             <div className="flex gap-4">
-              <label className="flex items-center">
+              <label className="flex items-center text-white">
                 <input
                   type="radio"
                   value="user"
@@ -85,7 +85,7 @@ export const SessionManager: React.FC<SessionManagerProps> = ({
                 <Users size={16} className="mr-1" />
                 User
               </label>
-              <label className="flex items-center">
+              <label className="flex items-center text-white">
                 <input
                   type="radio"
                   value="admin"
@@ -119,9 +119,9 @@ export const SessionManager: React.FC<SessionManagerProps> = ({
       )}
 
       {currentSession && (
-        <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
-          <h3 className="font-medium text-primary-800 mb-2">Current Session</h3>
-          <div className="text-sm text-primary-700">
+        <div className="glass-effect rounded-xl p-4">
+          <h3 className="font-medium text-white mb-2">Current Session</h3>
+          <div className="text-sm text-white/80">
             <p><strong>Name:</strong> {currentSession.session_name}</p>
             <p><strong>Type:</strong> {currentSession.user_type}</p>
             <p><strong>ID:</strong> {currentSession.session_id}</p>

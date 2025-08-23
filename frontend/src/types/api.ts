@@ -42,6 +42,10 @@ export interface AssistantPayload {
   action_word?: string;
   clarity_score?: number;
   vague_aspects?: string[];
+  // Regeneration request fields
+  user_friendly_message?: string;
+  technical_details?: string;
+  suggested_fixes?: string[];
 }
 
 export interface Session {

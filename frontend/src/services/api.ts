@@ -82,4 +82,15 @@ export const conversationService = {
   },
 };
 
+export const scanService = {
+  async getTables(): Promise<ApiResponse<any>> {
+    const response = await api.get('/scan/tables');
+    return {
+      data: response.data.payload,
+      message: 'Tables scanned successfully',
+      status: response.data.status
+    };
+  },
+};
+
 export default api;

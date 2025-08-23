@@ -9,7 +9,10 @@ from app.services.llm.session import LLMSession
 from app.services.llm.tools.sql_query_validator import human_query_clarification
 from app.services.llm.tools.validation_orchestrator import validation_orchestrator
 from app.services.llm.tools.validation_metrics import record_validation_result_metric
+from app.services.llm.tools.sql_execution_analyzer import sql_execution_analyzer
+from app.services.llm.tools.sql_regeneration_tool import sql_regeneration_tool
 from app.services.datastore.duckdb_datastore import DuckDBDatastore
+from app.controllers.scan_controller import ScanController
 from app.schemas.tool_schemas import (
     TextToSQLInput, TextToSQLOutput, SQLExecutionResult, DecisionType, ValidationStrategy,
     dict_to_text_to_sql_input, text_to_sql_output_to_dict
@@ -32,7 +35,7 @@ def execute_sql_query(sql_text: str) -> List[Dict[str, Any]]:
 
 @tool_call
 @observe
-def text_to_sql(natural_language_query: str, context_text: str = "", schema_text: str = "", user_type: str = "user", previous_chat: str = "") -> Dict[str, Any]:
+def text_to_sql(natural_language_query: str, context_text: str = "", schema_text: str = "", user_type: str = "user", previous_chat: str = "", regeneration_feedback: str = "", failed_sql: str = "") -> Dict[str, Any]:
     """
     Generate a SQL query from a natural language request using provided context and schema.
     Includes validation and refinement loop with confidence scoring.
@@ -43,6 +46,7 @@ def text_to_sql(natural_language_query: str, context_text: str = "", schema_text
       schema_text: Compact schema summary.
       user_type: "user" or "admin" - determines permission level.
       previous_chat: Previous conversation context for better SQL generation.
+      regeneration_feedback: Feedback from failed execution for regeneration.
 
     Returns:
       {"query": sql_text, "decision": "...", "feedback": "..."} or human verification payload
@@ -65,7 +69,7 @@ def text_to_sql(natural_language_query: str, context_text: str = "", schema_text
         ))
 
     # Step 1: Generate initial SQL
-    initial_result = _generate_initial_sql(input_data.natural_language_query, input_data.context_text, input_data.schema_text, input_data.previous_chat)
+    initial_result = _generate_initial_sql(input_data.natural_language_query, input_data.context_text, input_data.schema_text, input_data.previous_chat, regeneration_feedback, failed_sql)
     if not initial_result.get("sql_text"):
         return text_to_sql_output_to_dict(TextToSQLOutput(
             query="",
@@ -145,18 +149,49 @@ def text_to_sql(natural_language_query: str, context_text: str = "", schema_text
             attempts=1
         )
     
-    # For other validation failures, return error response
+    # For other validation failures, try regeneration
     logger.warning(f"text_to_sql: validation failed: {errors}")
-    return text_to_sql_output_to_dict(TextToSQLOutput(
-        query=sql_text,
-        decision=DecisionType.REJECT,
-        feedback=f"Validation failed: {'; '.join(errors)}",
-        validation_time=validation_time,
-        validation_strategy=ValidationStrategy(orchestration_result.get("validation_strategy", "sequential"))
-    ))
+    logger.info(f"text_to_sql: attempting regeneration with validation feedback")
+    
+    # Call the regeneration tool with validation failure context
+    regeneration_result = sql_regeneration_tool(
+        original_query=input_data.natural_language_query,
+        failed_sql=sql_text,
+        failure_reason="; ".join(errors),
+        context_text=input_data.context_text,
+        schema_text=input_data.schema_text,
+        user_type=input_data.user_type,
+        previous_chat=input_data.previous_chat,
+        failure_type="validation"
+    )
+    
+    # Convert regeneration result to text_to_sql format
+    if regeneration_result.get("type") == "regeneration_request":
+        # If regeneration also fails, return regeneration request
+        return regeneration_result
+    elif regeneration_result.get("type") == "human_verification":
+        # If regeneration requires human verification, return that
+        return regeneration_result
+    else:
+        # If regeneration succeeds, convert the result
+        regenerated_sql = regeneration_result.get("regenerated_sql", "")
+        decision = regeneration_result.get("decision", "reject")
+        feedback = regeneration_result.get("feedback", "")
+        rows = regeneration_result.get("rows")
+        row_count = regeneration_result.get("row_count", 0)
+        
+        return text_to_sql_output_to_dict(TextToSQLOutput(
+            query=regenerated_sql,
+            decision=DecisionType(decision),
+            feedback=feedback,
+            row_count=row_count,
+            rows=rows,
+            validation_time=regeneration_result.get("validation_time", 0),
+            validation_strategy=ValidationStrategy(regeneration_result.get("validation_strategy", "sequential"))
+        ))
 
 
-def _generate_initial_sql(natural_language_query: str, context_text: str, schema_text: str, previous_chat: str = "") -> Dict[str, str]:
+def _generate_initial_sql(natural_language_query: str, context_text: str, schema_text: str, previous_chat: str = "", regeneration_feedback: str = "", failed_sql: str = "") -> Dict[str, str]:
     """
     Generate the initial SQL query using the LLM with internal feedback mechanism.
     """
@@ -165,6 +200,73 @@ def _generate_initial_sql(natural_language_query: str, context_text: str, schema
         embedding_model=current_app.config.get("EMBEDDING_MODEL"),
     )
 
+    # Add regeneration feedback to system message if provided
+    regeneration_guidance = ""
+    if regeneration_feedback:
+        # Parse the feedback to provide more specific guidance
+        feedback_lower = regeneration_feedback.lower()
+        
+        # Extract specific error patterns and provide targeted guidance
+        specific_guidance = ""
+        
+        if "can only drop one object at a time" in feedback_lower or "multiple drop" in feedback_lower:
+            specific_guidance = (
+                "\n\nSPECIFIC REGENERATION INSTRUCTIONS:\n"
+                "- The previous query tried to drop multiple tables in a single statement\n"
+                "- DuckDB only supports dropping one object at a time\n"
+                "- Generate separate DROP statements for each table\n"
+                "- Example: Instead of 'DROP TABLE t1, t2, t3;', use:\n"
+                "  DROP TABLE t1;\n"
+                "  DROP TABLE t2;\n"
+                "  DROP TABLE t3;\n"
+                "- Or use a single DROP statement for the most important table first\n"
+            )
+        elif "table.*not found" in feedback_lower or "unknown.*table" in feedback_lower:
+            specific_guidance = (
+                "\n\nSPECIFIC REGENERATION INSTRUCTIONS:\n"
+                "- The previous query referenced a table that doesn't exist\n"
+                "- Check the schema carefully for correct table names\n"
+                "- Use fully qualified names (schema.table) if schema is provided\n"
+                "- Look for similar table names in the schema\n"
+                "- Verify table name spelling and case sensitivity\n"
+            )
+        elif "column.*not found" in feedback_lower or "unknown.*column" in feedback_lower:
+            specific_guidance = (
+                "\n\nSPECIFIC REGENERATION INSTRUCTIONS:\n"
+                "- The previous query referenced a column that doesn't exist\n"
+                "- Check the schema for correct column names\n"
+                "- Use table aliases if needed to avoid ambiguity\n"
+                "- Verify column name spelling and case sensitivity\n"
+            )
+        elif "syntax error" in feedback_lower or "invalid.*syntax" in feedback_lower:
+            specific_guidance = (
+                "\n\nSPECIFIC REGENERATION INSTRUCTIONS:\n"
+                "- The previous query had syntax errors\n"
+                "- Check for missing semicolons, parentheses, or keywords\n"
+                "- Verify proper SQL syntax for the specific operation\n"
+                "- Ensure proper clause ordering (SELECT, FROM, WHERE, GROUP BY, etc.)\n"
+            )
+        elif "group.*by" in feedback_lower or "must appear in the group by clause" in feedback_lower:
+            specific_guidance = (
+                "\n\nSPECIFIC REGENERATION INSTRUCTIONS:\n"
+                "- The previous query had GROUP BY clause issues\n"
+                "- All non-aggregated columns in SELECT must appear in GROUP BY\n"
+                "- Or use aggregate functions (COUNT, SUM, AVG, etc.) for non-grouped columns\n"
+                "- Check for proper HAVING clause usage with GROUP BY\n"
+            )
+        else:
+            # Generic guidance for other errors
+            specific_guidance = (
+                "\n\nSPECIFIC REGENERATION INSTRUCTIONS:\n"
+                "- The previous SQL query failed execution\n"
+                "- Analyze the error message and fix the specific issue\n"
+                "- Check table names, column names, and syntax\n"
+                "- Ensure the query follows proper SQL standards\n"
+                "- Verify that all referenced objects exist in the schema\n"
+            )
+        
+        regeneration_guidance = f"\n\nREGENERATION FEEDBACK:\n{regeneration_feedback}\n\n{specific_guidance}\n\nCRITICAL: Use the above feedback to generate a corrected query that addresses the specific error."
+    
     system_message = (
         "You are an expert DuckDB SQL generator. Using ONLY the provided schema and context data, "
         "produce a single, executable SQL statement that accurately answers the user's request.\n\n"
@@ -174,21 +276,31 @@ def _generate_initial_sql(natural_language_query: str, context_text: str, schema
         "- If context mentions specific tables, columns, or relationships, incorporate them in your query\n"
         "- When context provides examples or patterns, follow similar query structures\n"
         "- If schema shows table relationships, use appropriate JOINs based on foreign keys\n\n"
+        "MULTI-TABLE DEPENDENCY HANDLING:\n"
+        "- If the query requires data from one table to query another table, use CTEs (Common Table Expressions) with WITH clauses\n"
+        "- Structure multi-step queries as: WITH step1 AS (first query), step2 AS (second query using step1) SELECT * FROM step2\n"
+        "- For complex dependencies, chain multiple CTEs: WITH step1 AS (...), step2 AS (...), step3 AS (...) SELECT * FROM step3\n"
+        "- Use subqueries when appropriate: SELECT * FROM table1 WHERE id IN (SELECT id FROM table2 WHERE condition)\n"
+        "- For filtering based on another table's data, use EXISTS or IN clauses\n"
+        "- When joining multiple tables for complex logic, use appropriate JOIN types (INNER, LEFT, RIGHT, FULL)\n"
+        "- Always ensure the final query returns the requested data in a single, executable statement\n\n"
         "QUERY TYPE HANDLING:\n"
-        "- SELECT queries: Use for reading/retrieving data\n"
+        "- SELECT queries: Use for reading/retrieving data (can include CTEs for multi-table operations)\n"
         "- INSERT queries: Use for adding new records to existing tables\n"
         "- UPDATE queries: Use for modifying existing records\n"
-        "- DELETE queries: Use for removing records\n"
+        "- DELETE queries: Use for removing records (will require human verification)\n"
+        "- DROP queries: Use when user explicitly requests to drop tables/views (will require human verification)\n"
         "- CREATE TABLE queries: Use when user explicitly requests to create a new table\n"
         "- CREATE VIEW queries: Use when user requests to create a view\n"
         "- CREATE INDEX queries: Use when user requests to create an index\n\n"
         "SECURITY GUIDELINES:\n"
         "- Only access tables and columns that exist in the provided schema\n"
-        "- Avoid system tables (information_schema, sys.*, pg_catalog)\n"
+        "- Avoid system tables (information_schema, sys.*, pg_catalog) unless user is admin\n"
         "- Do not generate privilege escalation commands (GRANT, REVOKE)\n"
         "- Do not perform file operations (COPY TO, INTO OUTFILE)\n"
         "- Do not execute dangerous functions (xp_cmdshell, exec, system)\n"
-        "- Generate only single, focused SQL statements\n\n"
+        "- Generate only single, focused SQL statements (even if using CTEs for multi-table logic)\n"
+        "- Admin users have more lenient restrictions for schema-related operations\n\n"
         "TECHNICAL REQUIREMENTS:\n"
         "- Use fully-qualified table names when schema is provided\n"
         "- Add LIMIT 100 for SELECT queries if no explicit limit is specified\n"
@@ -197,7 +309,9 @@ def _generate_initial_sql(natural_language_query: str, context_text: str, schema
         "- Ensure WHERE clauses are properly structured\n"
         "- For case-insensitive string comparisons, use ILIKE instead of = (e.g., WHERE Channel ILIKE 'private label')\n"
         "- For exact case-insensitive matches, use UPPER() or LOWER() functions (e.g., WHERE UPPER(Channel) = UPPER('private label'))\n"
-        "- For CREATE TABLE statements, include appropriate data types and constraints\n\n"
+        "- For CREATE TABLE statements, include appropriate data types and constraints\n"
+        "- For CTEs, ensure proper comma separation between steps and final SELECT statement\n"
+        "- Use meaningful CTE names that describe the step's purpose\n\n"
         "VAGUE QUERY HANDLING:\n"
         "- Only mark as VAGUE_QUERY if the request truly lacks sufficient detail\n"
         "- If context provides clear table/column references, use them to generate appropriate SQL\n"
@@ -209,7 +323,7 @@ def _generate_initial_sql(natural_language_query: str, context_text: str, schema
         "- If the first attempt results in VAGUE_QUERY, reconsider using available context and schema\n"
         "- Look for table name variations (e.g., 'customer' vs 'customers')\n"
         "- Use context data to infer table names and relationships\n"
-        "- Make reasonable assumptions based on available schema information"
+        "- Make reasonable assumptions based on available schema information" + regeneration_guidance
     )
 
     # First attempt
@@ -219,6 +333,12 @@ def _generate_initial_sql(natural_language_query: str, context_text: str, schema
         f"Previous chat context:\n{previous_chat}\n\n"
         f"User request:\n{natural_language_query}"
     )
+    
+    # Add failed SQL query context if this is a regeneration
+    if regeneration_feedback and failed_sql:
+        user_message += f"\n\nFAILED SQL QUERY (for reference):\n{failed_sql}\n\nERROR MESSAGE:\n{regeneration_feedback}"
+    elif regeneration_feedback:
+        user_message += f"\n\nERROR MESSAGE:\n{regeneration_feedback}"
 
     response = llm.chat(
         messages=[
@@ -238,6 +358,8 @@ def _generate_initial_sql(natural_language_query: str, context_text: str, schema
             "- Make reasonable assumptions about table names and relationships\n"
             "- If user mentions a concept (e.g., 'customers'), look for similar table names in schema\n"
             "- Use context data to infer missing details\n"
+            "- For multi-table dependencies, use CTEs to chain queries logically\n"
+            "- Look for foreign key relationships in schema to understand table connections\n"
             "- Only return VAGUE_QUERY if absolutely no meaningful query can be constructed"
         )
         
@@ -248,8 +370,15 @@ def _generate_initial_sql(natural_language_query: str, context_text: str, schema
             f"User request:\n{natural_language_query}\n\n"
             f"IMPORTANT: Use available context and schema more aggressively. "
             f"Look for table name variations and make reasonable assumptions. "
+            f"If the query requires data from multiple tables, use CTEs to chain the logic properly. "
             f"Only return VAGUE_QUERY if absolutely no meaningful query can be constructed."
         )
+        
+        # Add failed SQL query context if this is a regeneration
+        if regeneration_feedback and failed_sql:
+            enhanced_user_message += f"\n\nFAILED SQL QUERY (for reference):\n{failed_sql}\n\nERROR MESSAGE:\n{regeneration_feedback}"
+        elif regeneration_feedback:
+            enhanced_user_message += f"\n\nERROR MESSAGE:\n{regeneration_feedback}"
         
         enhanced_response = llm.chat(
             messages=[
@@ -310,6 +439,28 @@ def _process_validated_sql(sql_text: str, input_data: TextToSQLInput, orchestrat
         try:
             # Execute the query
             rows = execute_sql_query(sql_text)
+            
+            # Check if this is a CREATE statement and trigger automatic scan
+            sql_lower = sql_text.lower().strip()
+            is_create_statement = sql_lower.startswith("create")
+            
+            logger.info(f"SQL execution completed. SQL: {sql_text[:100]}...")
+            logger.info(f"Is CREATE statement: {is_create_statement}")
+            
+            # Add scan notification to feedback if it's a CREATE statement
+            if is_create_statement:
+                logger.info("CREATE statement detected, triggering automatic scan...")
+                try:
+                    # Trigger automatic scan to update schema information
+                    scan_controller = ScanController()
+                    scan_result = scan_controller.get_tables()
+                    logger.info(f"Automatic scan completed successfully. Found {len(scan_result)} tables")
+                    feedback += "\n\n✅ Table created successfully! The database schema has been automatically updated."
+                    logger.info("Automatic scan triggered after CREATE statement execution")
+                except Exception as scan_error:
+                    logger.warning(f"Automatic scan failed after CREATE statement: {scan_error}")
+                    feedback += "\n\n✅ Table created successfully! (Schema scan failed, but table was created)"
+            
             return text_to_sql_output_to_dict(TextToSQLOutput(
                 query=sql_text,
                 decision=DecisionType.ACCEPT,
@@ -320,13 +471,44 @@ def _process_validated_sql(sql_text: str, input_data: TextToSQLInput, orchestrat
                 validation_strategy=ValidationStrategy(orchestration_result.get("validation_strategy", "sequential"))
             ))
         except Exception as e:
-            return text_to_sql_output_to_dict(TextToSQLOutput(
-                query=sql_text,
-                decision=DecisionType.REJECT,
-                feedback=f"Execution failed: {str(e)}",
-                validation_time=orchestration_result.get("total_validation_time", 0),
-                validation_strategy=ValidationStrategy(orchestration_result.get("validation_strategy", "sequential"))
-            ))
+            # Analyze the execution failure
+            logger.info(f"SQL execution failed, analyzing error: {str(e)}")
+            analysis_result = sql_execution_analyzer(
+                sql_query=sql_text,
+                error_message=str(e),
+                user_query=input_data.natural_language_query,
+                db_schema=input_data.schema_text
+            )
+            
+            failure_type = analysis_result.get("failure_type", "unknown")
+            should_regenerate = analysis_result.get("should_regenerate", False)
+            regeneration_feedback = analysis_result.get("regeneration_feedback", "")
+            user_friendly_message = analysis_result.get("user_friendly_message", "")
+            
+            if should_regenerate and failure_type == "sql_structure":
+                # Return regeneration request with feedback
+                logger.info(f"SQL structure error detected, requesting regeneration: {regeneration_feedback}")
+                return {
+                    "type": "regeneration_request",
+                    "sql": sql_text,
+                    "feedback": regeneration_feedback,
+                    "requires_clarification": False,
+                    "original_query": input_data.natural_language_query,
+                    "user_friendly_message": user_friendly_message,
+                    "technical_details": analysis_result.get("technical_details", ""),
+                    "suggested_fixes": analysis_result.get("suggested_fixes", []),
+                    "message": f"SQL execution failed due to a structural issue. I'll try to fix it.\n\n**Error:** {user_friendly_message}\n\n**Technical Details:** {analysis_result.get('technical_details', '')}\n\nI'm regenerating the query with the following feedback: {regeneration_feedback}"
+                }
+            else:
+                # Return user-friendly error message for valid execution failures
+                logger.info(f"Valid execution failure: {user_friendly_message}")
+                return text_to_sql_output_to_dict(TextToSQLOutput(
+                    query=sql_text,
+                    decision=DecisionType.EXECUTION_FAILED,
+                    feedback=user_friendly_message,
+                    validation_time=orchestration_result.get("total_validation_time", 0),
+                    validation_strategy=ValidationStrategy(orchestration_result.get("validation_strategy", "sequential"))
+                ))
     elif decision == "human_verification":
         # Return human verification request with the SQL query included
         return {

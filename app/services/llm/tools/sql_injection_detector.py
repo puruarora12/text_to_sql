@@ -12,12 +12,13 @@ import json
 
 @tool_call
 @observe
-def sql_injection_detector(sql_query: str) -> Dict[str, str]:
+def sql_injection_detector(sql_query: str, user_type: str = "user") -> Dict[str, str]:
     """
     Simple LLM-based SQL injection detection that analyzes queries for malicious patterns.
     
     Args:
         sql_query: The SQL query to analyze for injection patterns
+        user_type: User type ("user" or "admin") - admin users get more lenient detection
         
     Returns:
         {"is_injection": true|false, "reason": "explanation", "confidence": "high|medium|low"}
@@ -31,31 +32,63 @@ def sql_injection_detector(sql_query: str) -> Dict[str, str]:
             embedding_model=current_app.config.get("EMBEDDING_MODEL"),
         )
         
-        system_message = (
-            "You are a SQL security expert. Analyze the provided SQL query for potential SQL injection attacks.\n\n"
-            "Look for these specific injection patterns:\n"
-            "1. Boolean-based injections: OR 1=1, OR TRUE, AND 1=1, etc.\n"
-            "2. Comment-based injections: --, /* */, #\n"
-            "3. Union-based injections: UNION SELECT, UNION ALL SELECT\n"
-            "4. Stacked queries: multiple statements separated by semicolons\n"
-            "5. Time-based injections: SLEEP(), WAITFOR DELAY, BENCHMARK()\n"
-            "6. System table access: information_schema, sys.tables, pg_catalog\n"
-            "7. Privilege escalation: GRANT, REVOKE, EXEC, EXECUTE\n"
-            "8. File operations: INTO OUTFILE, COPY TO, LOAD_FILE()\n"
-            "9. Dangerous functions: xp_cmdshell, system(), eval()\n"
-            "10. Authentication bypass attempts\n"
-            "11. Data exfiltration attempts\n"
-            "12. Schema discovery attempts\n\n"
-            "IMPORTANT: Only flag as injection if you are confident the pattern is malicious.\n"
-            "Legitimate SQL functions like CONCAT(), SUBSTRING(), etc. should NOT be flagged.\n"
-            "Normal WHERE clauses with OR/AND conditions should NOT be flagged unless they appear to bypass security.\n\n"
-            "Respond with JSON only:\n"
-            "{\n"
-            '  "is_injection": true/false,\n'
-            '  "reason": "clear explanation of why this is or is not an injection",\n'
-            '  "confidence": "high/medium/low"\n'
-            "}"
-        )
+        # Adjust detection sensitivity based on user type
+        if user_type.lower() == "admin":
+            system_message = (
+                "You are a SQL security expert analyzing queries for an ADMIN user. "
+                "Admin users have elevated privileges, so be more lenient with schema-related operations.\n\n"
+                "Look for these specific injection patterns:\n"
+                "1. Boolean-based injections: OR 1=1, OR TRUE, AND 1=1, etc.\n"
+                "2. Comment-based injections: --, /* */, #\n"
+                "3. Union-based injections: UNION SELECT, UNION ALL SELECT\n"
+                "4. Stacked queries: multiple statements separated by semicolons\n"
+                "5. Time-based injections: SLEEP(), WAITFOR DELAY, BENCHMARK()\n"
+                "6. Privilege escalation: GRANT, REVOKE, EXEC, EXECUTE\n"
+                "7. File operations: INTO OUTFILE, COPY TO, LOAD_FILE()\n"
+                "8. Dangerous functions: xp_cmdshell, system(), eval()\n"
+                "9. Authentication bypass attempts\n"
+                "10. Data exfiltration attempts\n\n"
+                "ADMIN-RELATED LENIENCY:\n"
+                "- System table access (information_schema, sys.tables, pg_catalog) is acceptable for admin users\n"
+                "- Schema discovery operations are acceptable for admin users\n"
+                "- DDL operations (CREATE, ALTER, DROP) are acceptable for admin users\n"
+                "- Table structure queries are acceptable for admin users\n\n"
+                "IMPORTANT: Only flag as injection if you are confident the pattern is malicious.\n"
+                "Legitimate SQL functions like CONCAT(), SUBSTRING(), etc. should NOT be flagged.\n"
+                "Normal WHERE clauses with OR/AND conditions should NOT be flagged unless they appear to bypass security.\n\n"
+                "Respond with JSON only:\n"
+                "{\n"
+                '  "is_injection": true/false,\n'
+                '  "reason": "clear explanation of why this is or is not an injection",\n'
+                '  "confidence": "high/medium/low"\n'
+                "}"
+            )
+        else:
+            system_message = (
+                "You are a SQL security expert. Analyze the provided SQL query for potential SQL injection attacks.\n\n"
+                "Look for these specific injection patterns:\n"
+                "1. Boolean-based injections: OR 1=1, OR TRUE, AND 1=1, etc.\n"
+                "2. Comment-based injections: --, /* */, #\n"
+                "3. Union-based injections: UNION SELECT, UNION ALL SELECT\n"
+                "4. Stacked queries: multiple statements separated by semicolons\n"
+                "5. Time-based injections: SLEEP(), WAITFOR DELAY, BENCHMARK()\n"
+                "6. System table access: information_schema, sys.tables, pg_catalog\n"
+                "7. Privilege escalation: GRANT, REVOKE, EXEC, EXECUTE\n"
+                "8. File operations: INTO OUTFILE, COPY TO, LOAD_FILE()\n"
+                "9. Dangerous functions: xp_cmdshell, system(), eval()\n"
+                "10. Authentication bypass attempts\n"
+                "11. Data exfiltration attempts\n"
+                "12. Schema discovery attempts\n\n"
+                "IMPORTANT: Only flag as injection if you are confident the pattern is malicious.\n"
+                "Legitimate SQL functions like CONCAT(), SUBSTRING(), etc. should NOT be flagged.\n"
+                "Normal WHERE clauses with OR/AND conditions should NOT be flagged unless they appear to bypass security.\n\n"
+                "Respond with JSON only:\n"
+                "{\n"
+                '  "is_injection": true/false,\n'
+                '  "reason": "clear explanation of why this is or is not an injection",\n'
+                '  "confidence": "high/medium/low"\n'
+                "}"
+            )
         
         user_message = f"Analyze this SQL query for SQL injection patterns:\n\n{sql_query}"
         
