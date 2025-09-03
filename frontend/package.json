@@ -1,7 +1,7 @@
 {
-  "name": "textlayer-frontend",
-  "version": "1.0.0",
-  "description": "Modern TypeScript frontend for TextLayer API",
+  "name": "text-to-sql-frontend",
+  "version": "0.1.0",
+  "description": "Modern TypeScript frontend for Text-to-SQL API",
   "main": "index.js",
   "scripts": {
     "dev": "vite",

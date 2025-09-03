@@ -1,5 +1,5 @@
-# TextLayer Frontend Startup Script
-Write-Host "Starting TextLayer Frontend..." -ForegroundColor Green
+# Text-to-SQL Frontend Startup Script
+Write-Host "Starting Text-to-SQL Frontend..." -ForegroundColor Green
 
 # Check if Node.js is installed
 try {

@@ -12,7 +12,7 @@ from app.utils.response import Response
 
 def stop(env, resp):
     resp('200 OK', [('Content-Type', 'text/plain')])
-    return [b'TextLayer Core API. Basepath /v1/']
+    return [b'Text-to-SQL Core API. Basepath /v1/']
 
 
 blueprints = {
@@ -40,7 +40,7 @@ def init_routes(app):
         
         return Response({
             'api_version': 'v1.0', 
-            'api_description': 'TextLayer Core API',
+            'api_description': 'Text-to-SQL Core API',
             'base_url': current_config.BASE_URL,
             'api_version_path': current_config.API_VERSION
         }, Response.HTTP_SUCCESS).build()

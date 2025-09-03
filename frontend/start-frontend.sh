@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# TextLayer Frontend Startup Script
-echo "🚀 Starting TextLayer Frontend..."
+# Text-to-SQL Frontend Startup Script
+echo "🚀 Starting Text-to-SQL Frontend..."
 
 # Check if Node.js is installed
 if ! command -v node &> /dev/null; then

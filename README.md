@@ -1,264 +1,116 @@
-# TextLayer Technical Interview
+# Text-to-SQL AI Chat Application
 
-<div align="center">
+A personal project demonstrating the integration of AI language models with database systems to enable natural language to SQL query conversion.
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
-![Python](https://img.shields.io/badge/Python-3.9-blue.svg)
-![License](https://img.shields.io/badge/license-Proprietary-red.svg)
+## Overview
 
-</div>
+This application provides an intelligent chat interface that allows users to interact with databases using natural language. It leverages advanced language models to understand user intent and generate appropriate SQL queries, making database interaction more accessible and user-friendly.
 
-This repository contains a simplified version of the TextLayer Core template, specifically designed for technical interview purposes. It provides a foundation for demonstrating your skills in building AI applications with Flask and related technologies.
+## Features
 
-## 📋 Quick Start
+- **Natural Language Processing**: Convert natural language queries to SQL
+- **AI-Powered Chat Interface**: Interactive chat with AI agents
+- **Database Integration**: Support for multiple database systems
+- **Session Management**: Persistent conversation history
+- **Modern Web Interface**: React-based frontend with real-time updates
+- **RESTful API**: Clean, documented API endpoints
+- **Vector Search**: Intelligent schema understanding and query optimization
 
-### Using Make (Recommended)
+## Architecture
 
-The project includes a Makefile with helpful commands for setup and running:
+The application follows a clean, modular architecture:
+
+- **Backend**: Flask-based API with structured error handling
+- **Frontend**: React TypeScript application with modern UI components
+- **AI Integration**: LiteLLM for language model management
+- **Database**: DuckDB for data storage and vector operations
+- **Vector Store**: Semantic search capabilities for schema understanding
+
+## Quick Start
+
+### Prerequisites
+
+- Python 3.8+
+- Node.js 16+
+- Docker (optional)
+
+### Backend Setup
+
+1. Clone the repository:
+```bash
+git clone <your-repo-url>
+cd text-to-sql
+```
+
+2. Install Python dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+3. Set up environment variables:
+```bash
+cp .env.example .env
+# Edit .env with your configuration
+```
+
+4. Run the backend:
+```bash
+python main.py
+```
+
+### Frontend Setup
+
+1. Navigate to the frontend directory:
+```bash
+cd frontend
+```
+
+2. Install dependencies:
+```bash
+npm install
+```
+
+3. Start the development server:
+```bash
+npm run dev
+```
+
+### Docker Deployment
+
+Build and run with Docker:
 
 ```bash
-# Initialize the project (creates venv, installs dependencies, sets up .env)
-make init
-
-# Start the Flask server
-make run
-
-# For help with available commands
-make help
+docker build -t text-to-sql-app .
+docker run -p 5000:5000 text-to-sql-app
 ```
 
-### Manual Setup
+## API Endpoints
 
-1. Clone the repository
-2. Set up environment variables:
-   ```bash
-   cp .env.example .env
-   # Edit .env with your API keys and configuration
-   ```
-3. Create and activate a virtual environment:
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   ```
-4. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-5. Run the application:
-   ```bash
-   FLASK_APP=application.py python -m flask run
-   ```
-6. Access the application at http://127.0.0.1:5000
+- `GET /v1/` - API information
+- `POST /v1/threads` - Create new chat thread
+- `POST /v1/threads/{thread_id}/messages` - Send message to thread
+- `GET /v1/threads/{thread_id}/messages` - Get thread messages
+- `POST /v1/scan` - Database schema scanning
 
-### Using Docker
-
-You can also run the application in a Docker container:
-
-```bash
-# Build the Docker image
-docker build -t textlayer-interview .
-
-# Run the container
-docker run -p 5000:5000 textlayer-interview
-
-# If you need to mount a local directory and pass environment variables
-docker run -p 5000:5000 \
-  -v $(pwd):/app \
-  --env-file .env \
-  textlayer-interview
-```
-
-## ⚙️ Configuration
-
-The application is configured through environment variables in the `.env` file. Key configuration variables include:
+## Project Structure
 
 ```
-# Flask Configuration
-FLASK_CONFIG=DEV  # Options: DEV, TEST, STAGING, PROD
-
-# OpenAI Configuration
-OPENAI_API_KEY=sk-your-api-key-here
-CHAT_MODEL=gpt-4o-mini
-EMBEDDING_MODEL=text-embedding-3-small
-KNN_EMBEDDING_DIMENSION=1536
-
-# Langfuse Configuration (for observability)
-LANGFUSE_PUBLIC_KEY=pk-your-public-key-here
-LANGFUSE_SECRET_KEY=sk-your-secret-key-here
-LANGFUSE_HOST=https://cloud.langfuse.com
+text-to-sql/
+├── app/                    # Main application code
+│   ├── controllers/       # API controllers
+│   ├── services/         # Business logic services
+│   ├── routes/           # API route definitions
+│   └── schemas/          # Data validation schemas
+├── frontend/             # React frontend application
+├── config.py             # Configuration settings
+└── main.py              # Application entry point
 ```
 
-Make sure to update these values with your actual API keys before running the application.
+## Contributing
 
-### Configuration Environment Options
+This is a personal project for learning and demonstration purposes. Feel free to fork and modify for your own use.
 
-The application supports different environments controlled by the `FLASK_CONFIG` variable:
+## License
 
-- **DEV**: Development environment with debug mode enabled
-- **TEST**: Testing environment with testing flags enabled
-- **STAGING**: Staging environment with production-like settings for QA
-- **PROD**: Production environment with optimized settings
-
-## 🔍 Overview
-
-TextLayer Core is a template for building AI applications. This interview version includes the core structure and essential integrations to demonstrate your ability to work with AI services, Flask, and modern Python application architecture.
-
-## ✨ Features
-
-- Flask application structure with modular organization
-- Integration with LiteLLM for unified access to multiple LLM providers
-- Langfuse integration for prompt management and observability
-- Environment-based configuration management
-
-## 🏛️ Architecture
-
-### Application Flow
-
-The TextLayer Core template implements a clean, modular architecture for AI applications:
-
-1. **Request Handling**: 
-   - Controllers receive and process incoming API requests
-   - Validation through schema definitions
-
-2. **Command Processing**:
-   - Business logic is organized in command handlers
-   - Separation of concerns with distinct command modules
-
-3. **Service Integration**:
-   - External services wrapped in service modules
-   - Modular design for extensibility
-
-4. **Response Handling**:
-   - Structured API responses
-   - Error handling with custom error types
-
-### Langfuse Integration
-
-[Langfuse](https://langfuse.com/docs) is integrated throughout the application to provide prompt management and observability:
-
-1. **Prompt Management**:
-   - Centralized storage and versioning of prompts
-   - Prompt templates with variable substitution
-
-2. **Observability with Trace Logging**:
-   - Process flows create Langfuse traces
-   - Key processing steps are tagged with observe markers
-
-Example trace tags implementation:
-
-```python
-# use the @observe tag for logging traces
-@observe()
-def add_numbers(a: int, b: int) -> int:
-    """
-    Example function demonstrating Langfuse trace logging.
-    
-    Args:
-        a: First number to add
-        b: Second number to add
-        
-    Returns:
-        Sum of the two numbers
-    """
-    return a + b
-```
-
-### LiteLLM Integration
-
-The application uses [LiteLLM](https://docs.litellm.ai/) in the `services/llm` module to provide a unified interface for multiple LLM providers:
-
-1. **Provider Agnostic Interface**:
-   - Single interface to access multiple LLM providers (OpenAI, Anthropic, etc.)
-   - Simplified model switching and fallback mechanisms
-   - Standardized input/output formats
-
-Example LiteLLM usage:
-
-```python
-from litellm import completion
-
-response = completion(
-    model="gpt-4",
-    messages=[{"role": "user", "content": "Analyze this content..."}],
-    temperature=0.7,
-    max_tokens=2000
-)
-```
-
-## 🚀 Interview Tasks
-
-As part of the interview process, you may be asked to:
-
-1. Extend the application with new features
-2. Modify existing components
-3. Debug issues in the codebase
-4. Optimize performance
-5. Implement best practices for security and scalability
-
-## 📁 Project Structure
-
-```
-textlayer-interview/
-├── app/                # Application package
-│   ├── __init__.py     # App initialization
-│   ├── commands/       # Command handlers
-│   ├── controllers/    # API controllers 
-│   ├── core/           # Core functionality
-│   ├── errors/         # Error handling
-│   ├── middlewares/    # HTTP middlewares
-│   ├── models/         # Data models
-│   ├── routes/         # API routes
-│   ├── schemas/        # Data validation
-│   ├── services/       # External services integration
-│   ├── utils/          # Utility functions
-│   ├── aws_triggers/   # AWS triggers (legacy)
-│   ├── cli/            # CLI commands
-│   ├── decorators.py   # Decorators
-│   ├── extensions.py   # Flask extensions
-│   └── log.py          # Logging configuration
-├── application.py      # Application entry point
-├── config.py           # Configuration settings
-├── requirements.txt    # Dependencies
-├── Dockerfile          # Container definition
-├── Makefile            # Build automation
-└── .env.example        # Environment variable template
-```
-
-## 🛠️ Development Guide
-
-### Running Tests
-
-The application includes a test framework. To run tests:
-
-```bash
-# Run tests from the CLI
-flask test
-
-# Run tests with code coverage report
-flask test --coverage
-```
-
-### Project Extension Points
-
-When working on the project, consider these key extension points:
-
-1. **Adding a new API endpoint**:
-   - Create a route in `app/routes/`
-   - Implement a controller in `app/controllers/`
-   - Add request/response schemas in `app/schemas/`
-
-2. **Implementing business logic**:
-   - Add command handlers in `app/commands/`
-   - Ensure proper error handling
-
-3. **Integrating external services**:
-   - Add service connectors in `app/services/`
-
-## 📝 Notes for Candidates
-
-- Focus on demonstrating clean, maintainable code
-- Show your understanding of Python best practices
-- Consider edge cases and error handling
-- Document your code appropriately
-- Be prepared to explain your design decisions 
+Personal project - use at your own discretion. 
 

@@ -1,8 +1,6 @@
-# TextLayer Conversation Flow Documentation
+# Text-to-SQL Conversation Flow Documentation
 
-## Overview
-
-This document describes the complete flow of how conversations work in the TextLayer AI Chat System, from user input to AI response, including all the decision points and processing steps.
+This document describes the complete flow of how conversations work in the Text-to-SQL AI Chat System, from user input to AI response, including all the decision points and processing steps.
 
 ## High-Level Flow Chart
 
@@ -47,6 +45,155 @@ flowchart TD
     EE --> HH
     FF --> HH
     GG --> HH
+```
+
+## Combined Detailed Flow Chart
+
+```mermaid
+flowchart TD
+    %% Step 1: Frontend User Interaction
+    A[User Types Message] --> B[Frontend: Validate Input]
+    B --> C[Frontend: Send POST Request]
+    C --> D[Backend: Receive HTTP Request]
+    
+    %% Step 2: Backend Request Processing
+    D --> E[Middleware: Auth & Logging]
+    E --> F[Route Handler: /threads/conversation]
+    F --> G[Schema Validation]
+    G --> H[Controller: ThreadController.conversation]
+    H --> I[Command: ConversationCommand]
+    I --> J[Command: ProcessChatMessageCommand]
+    
+    %% Step 3: AI Pipeline - Initial Processing
+    J --> K[Extract Latest User Request]
+    K --> L[db_schema_vector_search]
+    L --> M[Vector Search for Context]
+    M --> N[Get Database Schema]
+    N --> O[text_to_sql Tool]
+    
+    %% Step 4: SQL Generation Process
+    O --> P[LLM Session Creation]
+    P --> Q[System Message Construction]
+    Q --> R[User Message Construction]
+    R --> S[LLM API Call]
+    S --> T[Extract SQL from Response]
+    T --> U{SQL Extracted?}
+    U -->|No| V[Return Error]
+    U -->|Yes| W{Is VAGUE_QUERY?}
+    W -->|Yes| X[Enhanced Context Usage]
+    X --> Y[Second LLM Attempt]
+    Y --> Z[Extract SQL from Enhanced Response]
+    Z --> AA{Still VAGUE_QUERY?}
+    AA -->|Yes| BB[Return VAGUE_QUERY]
+    AA -->|No| CC[Return Generated SQL]
+    W -->|No| CC
+    
+    %% Step 5: Validation Orchestration
+    CC --> DD[validation_orchestrator]
+    DD --> EE[Analyze Query Complexity]
+    EE --> FF{Complexity Level}
+    FF -->|Simple| GG[Minimal Validation]
+    FF -->|Medium| HH[Sequential Validation]
+    FF -->|Complex| II[Parallel Validation]
+    GG --> JJ[Basic Schema + Security Check]
+    HH --> KK[Schema + Security + Query + Guardrail]
+    II --> LL[Parallel Execution of All Validations]
+    JJ --> MM[Return Validation Result]
+    KK --> MM
+    LL --> MM
+    MM --> NN{Validation Passed?}
+    NN -->|No| OO{Need Clarification?}
+    NN -->|Yes| PP{sql_guardrail Decision}
+    
+    %% Step 6: Human Verification Flow
+    PP -->|Accept| QQ[Execute SQL]
+    PP -->|Human Verification| RR[Request User Approval]
+    PP -->|Reject| SS[Return Rejection]
+    RR --> TT[Frontend: Display SQL + Buttons]
+    TT --> UU[User Responds Yes/No]
+    UU --> VV{User Approved?}
+    VV -->|Yes| QQ
+    VV -->|No| WW[Return Cancelled]
+    
+    %% Step 7: SQL Execution and Regeneration
+    QQ --> XX{Execution Successful?}
+    XX -->|Yes| YY[Return Results]
+    XX -->|No| ZZ[sql_execution_analyzer]
+    ZZ --> AAA[Analyze Error Type]
+    AAA --> BBB{Error Type}
+    BBB -->|SQL Structure| CCC[Should Regenerate = True]
+    BBB -->|Data Issue| DDD[Should Regenerate = False]
+    BBB -->|Permission Issue| EEE[Should Regenerate = False]
+    CCC --> FFF[sql_regeneration_tool]
+    FFF --> GGG[Extract Error Feedback]
+    GGG --> HHH[Add Regeneration Context]
+    HHH --> III[Call text_to_sql with Feedback]
+    III --> JJJ[Generate New SQL]
+    JJJ --> KKK{New SQL Generated?}
+    KKK -->|Yes| LL[Validate New SQL]
+    KKK -->|No| MMM[Return Regeneration Failed]
+    LL --> NN{Validation Passed?}
+    NN -->|Yes| QQ
+    NN -->|No| NNN[Return Validation Failed]
+    DDD --> OOO[Return User-Friendly Error]
+    EEE --> PPP[Return Permission Error]
+    
+    %% Step 8: Frontend Response Handling
+    YY --> QQQ[Backend: Return Success Response]
+    SS --> RRR[Backend: Return Rejection Response]
+    WW --> SSS[Backend: Return Cancelled Response]
+    OOO --> TTT[Backend: Return Error Response]
+    PPP --> UUU[Backend: Return Error Response]
+    MMM --> VVV[Backend: Return Error Response]
+    NNN --> WWW[Backend: Return Error Response]
+    
+    QQQ --> XXX[Frontend: Receive API Response]
+    RRR --> XXX
+    SSS --> XXX
+    TTT --> XXX
+    UUU --> XXX
+    VVV --> XXX
+    WWW --> XXX
+    
+    XXX --> YYY[Parse Response Payload]
+    YYY --> ZZZ{Response Type}
+    ZZZ -->|Success| AAAA[Display SQL + Results]
+    ZZZ -->|Human Verification| BBBB[Display SQL + Buttons]
+    ZZZ -->|Clarification| CCCC[Display Clarification Request]
+    ZZZ -->|Regeneration Request| DDDD[Display Regeneration Message]
+    ZZZ -->|Error| EEEE[Display Error Message]
+    
+    AAAA --> FFFF[Format Results]
+    FFFF --> GGGG[Add to Chat History]
+    GGGG --> HHHH[Update UI]
+    
+    BBBB --> IIII[Show Yes/No Buttons]
+    IIII --> JJJJ[Wait for User Input]
+    JJJJ --> UU
+    
+    CCCC --> KKKK[Show Clarification Text]
+    KKKK --> LLLL[Wait for User Input]
+    LLLL --> MMMM[Handle User Response]
+    MMMM --> NNNN[Send Response to Backend]
+    
+    DDDD --> OOOO[Show Regeneration Progress]
+    OOOO --> PPPP[Auto-trigger Regeneration]
+    PPPP --> QQQQ[Handle Regeneration]
+    QQQQ --> NNNN
+    
+    EEEE --> RRRR[Show Error Details]
+    RRRR --> SSSS[Update UI]
+    
+    HHHH --> TTTT[Conversation Continues]
+    SSSS --> TTTT
+    
+    %% Clarification and Regeneration Loops
+    OO -->|Yes| CCCC
+    OO -->|No| FFF
+    
+    %% Error Handling
+    V --> UUUU[Frontend: Display Error]
+    UUUU --> TTTT
 ```
 
 ## Detailed Flow Breakdown
@@ -387,4 +534,4 @@ flowchart TD
 
 ---
 
-This flow documentation provides a comprehensive view of how the TextLayer conversation system works, from initial user input through all the AI processing steps to final response delivery. Understanding this flow is essential for debugging, optimization, and extending the system.
+This flow documentation provides a comprehensive view of how the Text-to-SQL conversation system works, from initial user input through all the AI processing steps to final response delivery. Understanding this flow is essential for debugging, optimization, and extending the system.

@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { Settings } from 'lucide-react';
-import { SessionManager } from './components/SessionManager';
+import './App.css';
 import { ChatInterface } from './components/ChatInterface';
+import { SessionManager } from './components/SessionManager';
 import type { CreateSessionResponse } from './types/api';
-import logo from './logo.png';
 
 function App() {
   const [currentSession, setCurrentSession] = useState<CreateSessionResponse | null>(null);
@@ -13,26 +12,23 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen bg-gray-900">
       {/* Header */}
-      <header className="glass-effect border-b border-white/20">
+      <header className="bg-gray-800 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex items-center justify-between h-16">
             <div className="flex items-center">
-              <img src={logo} alt="TextLayer Logo" className="h-8 w-8 mr-3 logo" />
-              <h1 className="text-xl font-bold text-white">TextLayer AI Chat</h1>
+              <h1 className="text-xl font-bold text-white">Text-to-SQL AI Chat</h1>
             </div>
             <div className="flex items-center space-x-4">
-              <button className="p-2 text-white/70 hover:text-white transition-colors">
-                <Settings size={20} />
-              </button>
+              <span className="text-gray-300 text-sm">AI-Powered Database Queries</span>
             </div>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Session Management Sidebar */}
           <div className="lg:col-span-1">
@@ -50,11 +46,11 @@ function App() {
       </main>
 
       {/* Footer */}
-      <footer className="glass-effect border-t border-white/20 mt-auto">
+      <footer className="bg-gray-800 mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <p className="text-center text-sm text-white/70">
-            TextLayer AI Chat Interface - Powered by Advanced Language Models
-          </p>
+          <div className="text-center text-gray-400 text-sm">
+            Text-to-SQL AI Chat Interface - Powered by Advanced Language Models
+          </div>
         </div>
       </footer>
     </div>

@@ -1,95 +1,85 @@
-# TextLayer Frontend
+# Text-to-SQL Frontend
 
-A modern TypeScript React application for managing sessions and chatting with the TextLayer AI agent.
+A modern TypeScript React application for managing sessions and chatting with the Text-to-SQL AI agent.
 
 ## Features
 
-- 🚀 Modern React with TypeScript
-- 🎨 Beautiful UI with Tailwind CSS
-- 💬 Real-time chat interface
-- 🔧 Session management
-- 📱 Responsive design
-- ⚡ Fast development with Vite
+- **Session Management**: Create and manage multiple chat sessions
+- **Real-time Chat**: Interactive chat interface with AI responses
+- **Modern UI**: Clean, responsive design built with Tailwind CSS
+- **TypeScript**: Full type safety and better development experience
+- **Vite**: Fast development and build tooling
 
 ## Prerequisites
 
-- Node.js 16+ 
-- npm or yarn
-- TextLayer backend running on localhost:5000
+- Node.js 16 or higher
+- npm or yarn package manager
+- Text-to-SQL backend running on localhost:5000
 
-## Setup
+## Quick Start
 
-1. **Install dependencies:**
+1. **Install Dependencies**
    ```bash
    npm install
    ```
 
-2. **Configure environment:**
-   ```bash
-   cp env.example .env
-   ```
-   
-   Edit `.env` and set your API base URL:
-   ```
-   VITE_API_BASE_URL=http://localhost:5000
-   ```
-
-3. **Start development server:**
+2. **Start Development Server**
    ```bash
    npm run dev
    ```
 
-4. **Open your browser:**
-   Navigate to `http://localhost:3000`
-
-## Available Scripts
-
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-- `npm run lint` - Run ESLint
+3. **Build for Production**
+   ```bash
+   npm run build
+   ```
 
 ## Project Structure
 
 ```
-src/
-├── components/          # React components
-│   ├── ChatInterface.tsx
-│   └── SessionManager.tsx
-├── services/           # API services
-│   └── api.ts
-├── types/              # TypeScript type definitions
-│   └── api.ts
-├── App.tsx            # Main application component
-├── main.tsx           # Application entry point
-└── index.css          # Global styles
+frontend/
+├── src/
+│   ├── components/     # React components
+│   ├── services/       # API service functions
+│   ├── types/          # TypeScript type definitions
+│   ├── App.tsx         # Main application component
+│   └── main.tsx        # Application entry point
+├── public/             # Static assets
+├── package.json        # Dependencies and scripts
+└── tailwind.config.js  # Tailwind CSS configuration
 ```
 
 ## API Integration
 
-The frontend integrates with the TextLayer API endpoints:
+The frontend integrates with the Text-to-SQL API endpoints:
 
-- `POST /v1/threads/sessions` - Create new session
-- `POST /v1/threads/conversation` - Send chat messages
-- `POST /v1/threads/chat` - Direct chat endpoint
-
-## Technologies Used
-
-- **React 18** - UI framework
-- **TypeScript** - Type safety
-- **Vite** - Build tool and dev server
-- **Tailwind CSS** - Styling
-- **Axios** - HTTP client
-- **Lucide React** - Icons
+- **Sessions**: Create and manage chat sessions
+- **Messages**: Send and receive chat messages
+- **Real-time Updates**: Live chat functionality
 
 ## Development
 
-The application uses Vite for fast development with hot module replacement. The development server includes a proxy configuration to forward API requests to the backend.
+- **Hot Reload**: Changes automatically refresh in the browser
+- **TypeScript**: Full type checking and IntelliSense support
+- **ESLint**: Code quality and consistency
+- **Tailwind CSS**: Utility-first CSS framework for styling
 
-## Building for Production
+## Building
+
+The application uses Vite for fast builds:
 
 ```bash
+# Development build
+npm run dev
+
+# Production build
 npm run build
+
+# Preview production build
+npm run preview
 ```
 
-This creates an optimized production build in the `dist/` directory.
+## Customization
+
+- **Styling**: Modify `tailwind.config.js` for theme changes
+- **Components**: Add new components in the `components/` directory
+- **API**: Update API endpoints in `services/api.ts`
